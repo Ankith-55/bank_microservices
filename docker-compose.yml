@@ -1,0 +1,178 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-microbank}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - microbank-net
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - microbank-net
+
+  db-migrate:
+    build: .
+    command: alembic upgrade head
+    depends_on:
+      db:
+        condition: service_started   # wait for db to start (not healthcheck, just start)
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-microbank}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}   # only needed if alembic env imports settings
+    networks:
+      - microbank-net
+
+  auth-service:
+    build: .
+    command: uvicorn app.auth.main:app --host 0.0.0.0 --port 8001 --reload
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+      - redis
+      - db-migrate
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSLIB_BUILTIN_BCRYPT: "true"
+      
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+      - "traefik.http.routers.auth.middlewares=auth-stripprefix"
+      - "traefik.http.middlewares.auth-stripprefix.stripprefix.prefixes=/auth"
+      - "traefik.http.services.auth.loadbalancer.server.port=8001"
+    networks:
+      - microbank-net
+
+  account-service:
+    build: .
+    command: uvicorn app.account.main:app --host 0.0.0.0 --port 8002 --reload
+    ports:
+      - "8002:8002"
+    depends_on:
+      - db
+      - redis
+      - db-migrate
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSLIB_BUILTIN_BCRYPT: "true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.account.rule=PathPrefix(`/accounts`)"
+      - "traefik.http.routers.account.middlewares=account-stripprefix"
+      - "traefik.http.middlewares.account-stripprefix.stripprefix.prefixes=/accounts"
+      - "traefik.http.services.account.loadbalancer.server.port=8002"
+    networks:
+      - microbank-net
+
+  transaction-service:
+    build: .
+    command: uvicorn app.transaction.main:app --host 0.0.0.0 --port 8003 --reload
+    ports:
+      - "8003:8003"
+    depends_on:
+      - db
+      - redis
+      - db-migrate
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSLIB_BUILTIN_BCRYPT: "true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.transaction.rule=PathPrefix(`/transactions`)"
+      - "traefik.http.routers.transaction.middlewares=transaction-stripprefix"
+      - "traefik.http.middlewares.transaction-stripprefix.stripprefix.prefixes=/transactions"
+      - "traefik.http.services.transaction.loadbalancer.server.port=8003"
+    networks:
+      - microbank-net
+
+  admin-service:
+    build: .
+    command: uvicorn app.admin.main:app --host 0.0.0.0 --port 8004 --reload
+    ports:
+      - "8004:8004"
+    depends_on:
+      - db
+      - redis
+      - db-migrate
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSLIB_BUILTIN_BCRYPT: "true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.admin.middlewares=admin-stripprefix"
+      - "traefik.http.middlewares.admin-stripprefix.stripprefix.prefixes=/admin"
+      - "traefik.http.services.admin.loadbalancer.server.port=8004"
+    networks:
+      - microbank-net
+
+  celery-worker:
+    build: .
+    command: celery -A app.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - db
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}   # only if celery tasks need it (interest task doesn't, but safe)
+      PASSLIB_BUILTIN_BCRYPT: "true"
+    networks:
+      - microbank-net
+
+  celery-beat:
+    build: .
+    command: celery -A app.celery_app beat --loglevel=info
+    depends_on:
+      - redis
+      - db
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSLIB_BUILTIN_BCRYPT: "true"
+    networks:
+      - microbank-net
+
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - microbank-net
+
+networks:
+  microbank-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
