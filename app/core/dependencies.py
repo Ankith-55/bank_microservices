@@ -7,6 +7,8 @@ from app.core.security import decode_access_token
 from app.models.user import User
 from sqlmodel import select
 
+
+#oauth2 to httpBearer change 
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 #oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 security_scheme = HTTPBearer()
