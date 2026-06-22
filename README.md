@@ -75,3 +75,18 @@ Designed for a hands on learning on SDE + DevOps.
 | POST   | `/interest/apply` | Yes  | Trigger interest calculation (Celery)  |
 | GET    | `/users`          | Yes  | List all users                         |
 | GET    | `/accounts`       | Yes  | List all accounts                      |
+
+
+## Integration Testing
+
+A standalone integration test script (`tests/integration_test.py`) validates the complete banking flow end‑to‑end directly against the running Docker services (ports 8001‑8004). It covers user registration, login, account creation, deposit, transfer between two users, transaction history, transaction detail, and admin interest calculation.
+
+**Run it after starting the containers** with `docker‑compose up`. Optionally promote a user to `ADMIN` in the database to test the admin endpoints.
+
+```bash
+# Set environment variables (Windows example)
+set ADMIN_EMAIL=your_admin_email@example.com
+set ADMIN_PASSWORD=your_password
+
+# Run the script
+python tests/integration_test.py
