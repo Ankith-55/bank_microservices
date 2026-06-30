@@ -113,22 +113,37 @@ integration_test:
     - apt-get update && apt-get install -y docker-compose curl
     - pip install -r requirements.txt
 
-    # -----------------------------------------------------------
-    # 1. Run database migrations (blocking)
-    # -----------------------------------------------------------
+    # 1. Start only the infrastructure that migrations depend on
+    - echo "🗄️ Starting database and Redis..."
+    - docker-compose up -d db redis
+
+    # 2. Wait until the database actually accepts connections
+    - echo "⏳ Waiting for database to become ready..."
+    - >
+      python -c "
+      import socket, time;
+      s = socket.socket();
+      for _ in range(30):
+          try:
+              s.connect(('db', 5432));
+              print('✅ Database ready');
+              break
+          except:
+              time.sleep(2);
+      else:
+          raise RuntimeError('Database did not become ready')
+      "
+
+    # 3. Run migrations now that the database is live
     - echo "🗃️ Running database migrations..."
     - docker-compose run --rm db-migrate
 
-    # -----------------------------------------------------------
-    # 2. Start all other services (migration already done)
-    # -----------------------------------------------------------
-    - echo "🚀 Launching services..."
+    # 4. Launch all remaining services
+    - echo "🚀 Launching all services..."
     - docker-compose up -d
 
-    # -----------------------------------------------------------
-    # 3. Wait for API services to be healthy
-    # -----------------------------------------------------------
-    - echo "⏳ Waiting for services..."
+    # 5. Wait for API services to respond
+    - echo "⏳ Waiting for API services..."
     - for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do echo "Checking $url"; for i in $(seq 1 30); do if curl -s "$url/docs" > /dev/null; then echo "✅ $url ready"; break; fi; sleep 2; done; done
   script:
     - python tests/integration_test.py
