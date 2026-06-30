@@ -83,7 +83,7 @@ A standalone integration test script (`tests/integration_test.py`) validates the
 
 **Run it after starting the containers** with `docker‑compose up`. Optionally promote a user to `ADMIN` in the database to test the admin endpoints.
 
-```bash
+
 # Set environment variables (Windows example)
 set ADMIN_EMAIL=your_admin_email@example.com
 set ADMIN_PASSWORD=your_password
