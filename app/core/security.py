@@ -1,4 +1,9 @@
 import bcrypt
+# JWT functions remain unchanged
+from datetime import datetime, timedelta, timezone
+from typing import Any
+from jose import jwt, JWTError
+from app.core.config import settings
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(
@@ -14,11 +19,7 @@ def get_password_hash(password: str) -> str:
         bcrypt.gensalt()
     ).decode('utf-8')
 
-# JWT functions remain unchanged
-from datetime import datetime, timedelta, timezone
-from typing import Any
-from jose import jwt, JWTError
-from app.core.config import settings
+
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()

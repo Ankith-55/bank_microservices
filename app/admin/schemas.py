@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from decimal import Decimal
-from typing import Optional
 
 class UserAdminResponse(BaseModel):
     id: str

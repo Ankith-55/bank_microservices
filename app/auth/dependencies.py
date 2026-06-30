@@ -1,7 +1,6 @@
 from fastapi import Request, HTTPException, status
 from app.core.cache import redis_client
 from app.core.config import settings
-import time
 
 async def rate_limit_login(request: Request):
     # Use client IP as key; fallback to "unknown"

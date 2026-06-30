@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from app.models.account import Account
-from app.core.cache import get_cached_balance, cache_balance, invalidate_balance_cache
+from app.core.cache import get_cached_balance, cache_balance
 from fastapi import HTTPException, status
 import random
 import string

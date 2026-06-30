@@ -4,7 +4,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
-from app.models import *  # noqa: ensure all models are loaded
+from app.models import *  # noqa: F403, F401
 from app.core.config import settings
 from sqlmodel import SQLModel
 

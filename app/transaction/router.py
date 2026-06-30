@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.transaction.schemas import DepositRequest, TransferRequest, TransactionResponse, TransactionDetail
 from app.transaction.service import TransactionService
