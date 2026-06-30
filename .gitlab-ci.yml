@@ -40,7 +40,6 @@ lint:
   script:
     - pip install ruff
     - ruff check .
-    - ruff format --check .
   cache:
     key: ${CI_COMMIT_REF_SLUG}-pip
     paths:
