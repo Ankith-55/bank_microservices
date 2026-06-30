@@ -58,6 +58,9 @@ security_scan:
   stage: security
   image: $PYTHON_IMAGE
   script:
+    # Upgrade system tools to remove known vulnerabilities
+    - pip install --upgrade pip wheel
+    # Install and run the scanner
     - pip install pip-audit
     - pip-audit
   cache:
