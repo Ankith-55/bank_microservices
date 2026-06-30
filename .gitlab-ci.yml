@@ -88,4 +88,3 @@ build:
 # ------------------------------------------------------------
 # Integration test
 # ------------------------------------------------------------
-# Done in stagin, not production, so we can use a separate job for integration tests.
