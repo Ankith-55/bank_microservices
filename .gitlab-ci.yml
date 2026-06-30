@@ -1,0 +1,146 @@
+# .gitlab-ci.yml — MicroBank CI/CD Pipeline
+# ==========================================
+# This pipeline automatically runs on every push and merge request.
+# It lints, scans for vulnerabilities, builds Docker images, launches
+# the full microservice stack, waits for readiness, runs integration tests,
+# and cleans up – just like a real production engineering team.
+
+stages:
+  - setup           # Install Python dependencies
+  - lint            # Static analysis & code formatting
+  - security        # Dependency vulnerability scanning
+  - build           # Build all Docker images
+  - test            # Start environment + integration tests + cleanup
+
+# -------------------------------------------------------------------
+# Global settings
+# -------------------------------------------------------------------
+services:
+  - docker:dind                     # Docker‑in‑Docker sidecar
+
+variables:
+  # Disable TLS for the Docker daemon (simplifies CI)
+  DOCKER_TLS_CERTDIR: ""
+  # Tell the Docker client where the daemon is
+  DOCKER_HOST: tcp://docker:2375
+  # Default Python image
+  PYTHON_IMAGE: python:3.11-slim
+
+# Shared pip cache (used by setup and later jobs)
+.pip_cache: &pip_cache
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-pip
+    paths:
+      - ~/.cache/pip
+    policy: pull-push
+
+# -------------------------------------------------------------------
+# Stage 1 — Setup environment
+# -------------------------------------------------------------------
+setup:
+  stage: setup
+  image: $PYTHON_IMAGE
+  script:
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+  <<: *pip_cache
+  only:
+    - merge_requests
+    - branches
+
+# -------------------------------------------------------------------
+# Stage 2 — Lint & Format (Ruff)
+# -------------------------------------------------------------------
+lint:
+  stage: lint
+  image: $PYTHON_IMAGE
+  script:
+    # Install linting tools (if not already in requirements)
+    - pip install ruff
+    # Check for code quality and style issues
+    - ruff check .
+    # Ensure code is properly formatted (like Black)
+    - ruff format --check .
+  cache:
+    <<: *pip_cache
+    policy: pull
+  needs: [setup]    # Only run after setup has succeeded
+  only:
+    - merge_requests
+    - branches
+
+# -------------------------------------------------------------------
+# Stage 3 — Security scan (pip‑audit)
+# -------------------------------------------------------------------
+security_scan:
+  stage: security
+  image: $PYTHON_IMAGE
+  script:
+    - pip install pip-audit
+    - pip-audit
+  cache:
+    <<: *pip_cache
+    policy: pull
+  needs: [setup]
+  only:
+    - merge_requests
+    - branches
+
+# -------------------------------------------------------------------
+# Stage 4 — Build Docker images
+# -------------------------------------------------------------------
+build:
+  stage: build
+  image: docker:latest
+  script:
+    # Build every service defined in docker-compose.yml
+    - docker-compose build
+  only:
+    - merge_requests
+    - branches
+
+# -------------------------------------------------------------------
+# Stage 5 — Integration tests (start, wait, test, cleanup)
+# -------------------------------------------------------------------
+integration_test:
+  stage: test
+  image: $PYTHON_IMAGE
+  variables:
+    # These URLs are used by the integration test script.
+    # They point to the Docker daemon's host, where services are exposed.
+    AUTH_URL: http://docker:8001
+    ACCOUNT_URL: http://docker:8002
+    TRANSACTION_URL: http://docker:8003
+    ADMIN_URL: http://docker:8004
+    # Admin credentials are taken from GitLab CI/CD Variables
+    # (set in Project Settings → CI/CD → Variables)
+  before_script:
+    # Install tools not present in the slim Python image
+    - apt-get update && apt-get install -y docker-compose curl
+    # Start the entire microservice stack
+    - echo "🚀 Launching all services..."
+    - docker-compose up -d
+    # Wait until every service responds to /docs
+    - echo "⏳ Waiting for services to become healthy..."
+    - |
+      for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do
+        for i in $(seq 1 30); do
+          if curl -s "$url/docs" > /dev/null; then
+            echo "✅ $url is ready"
+            break
+          fi
+          echo "Waiting for $url ..."
+          sleep 2
+        done
+      done
+  script:
+    # Execute the full end‑to‑end integration test
+    - python tests/integration_test.py
+  after_script:
+    # Tear down everything, even if the tests fail
+    - echo "🧹 Cleaning up containers..."
+    - docker-compose down -v --remove-orphans
+  needs: [build]    # Only start after images have been built
+  only:
+    - merge_requests
+    - branches
