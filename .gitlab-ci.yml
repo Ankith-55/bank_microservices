@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 # .gitlab-ci.yml — MicroBank CI/CD Pipeline
 # ==========================================
+=======
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
 stages:
   - setup
   - lint
@@ -7,9 +10,6 @@ stages:
   - build
   - test
 
-# -------------------------------------------------------------------
-# Global settings
-# -------------------------------------------------------------------
 services:
   - docker:dind
 
@@ -18,9 +18,15 @@ variables:
   DOCKER_HOST: tcp://docker:2375
   PYTHON_IMAGE: python:3.11-slim
 
+<<<<<<< HEAD
 # -------------------------------------------------------------------
 # Stage 1 — Setup environment (write access to pip cache)
 # -------------------------------------------------------------------
+=======
+# ------------------------------------------------------------
+# Setup
+# ------------------------------------------------------------
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
 setup:
   stage: setup
   image: $PYTHON_IMAGE
@@ -36,9 +42,15 @@ setup:
     - merge_requests
     - branches
 
+<<<<<<< HEAD
 # -------------------------------------------------------------------
 # Stage 2 — Lint & Format (Ruff) – read‑only cache
 # -------------------------------------------------------------------
+=======
+# ------------------------------------------------------------
+# Lint
+# ------------------------------------------------------------
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
 lint:
   stage: lint
   image: $PYTHON_IMAGE
@@ -51,14 +63,25 @@ lint:
     paths:
       - ~/.cache/pip
     policy: pull
+<<<<<<< HEAD
   needs: [setup]
+=======
+  needs:
+    - setup
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
   only:
     - merge_requests
     - branches
 
+<<<<<<< HEAD
 # -------------------------------------------------------------------
 # Stage 3 — Security scan (pip‑audit) – read‑only cache
 # -------------------------------------------------------------------
+=======
+# ------------------------------------------------------------
+# Security
+# ------------------------------------------------------------
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
 security_scan:
   stage: security
   image: $PYTHON_IMAGE
@@ -70,14 +93,15 @@ security_scan:
     paths:
       - ~/.cache/pip
     policy: pull
-  needs: [setup]
+  needs:
+    - setup
   only:
     - merge_requests
     - branches
 
-# -------------------------------------------------------------------
-# Stage 4 — Build Docker images
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
+# Build
+# ------------------------------------------------------------
 build:
   stage: build
   image: docker:latest
@@ -87,9 +111,9 @@ build:
     - merge_requests
     - branches
 
-# -------------------------------------------------------------------
-# Stage 5 — Integration tests (start, wait, test, cleanup)
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
+# Integration test
+# ------------------------------------------------------------
 integration_test:
   stage: test
   image: $PYTHON_IMAGE
@@ -98,12 +122,18 @@ integration_test:
     ACCOUNT_URL: http://docker:8002
     TRANSACTION_URL: http://docker:8003
     ADMIN_URL: http://docker:8004
+<<<<<<< HEAD
     # ADMIN_EMAIL and ADMIN_PASSWORD are GitLab CI/CD Variables
   before_script:
     - apt-get update && apt-get install -y docker-compose curl
     - echo "🚀 Launching all services..."
     - docker-compose up -d
     - echo "⏳ Waiting for services..."
+=======
+  before_script:
+    - apt-get update && apt-get install -y docker-compose curl
+    - docker-compose up -d
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
     - |
       for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do
         for i in $(seq 1 30); do
@@ -118,7 +148,12 @@ integration_test:
     - python tests/integration_test.py
   after_script:
     - docker-compose down -v --remove-orphans
+<<<<<<< HEAD
   needs: [build]
+=======
+  needs:
+    - build
+>>>>>>> 81bcda297df6e10aab7b9bc57d14bebe0eefaf37
   only:
     - merge_requests
     - branches
