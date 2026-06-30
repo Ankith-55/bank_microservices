@@ -90,3 +90,50 @@ set ADMIN_PASSWORD=your_password
 
 # Run the script
 python tests/integration_test.py
+
+
+## CI/CD Pipeline (GitLab)
+
+Every push and merge request is automatically validated by a professional GitLab CI/CD pipeline defined in `.gitlab-ci.yml`. The pipeline ensures code quality, catches vulnerabilities, and verifies the entire microservice stack works end‑to‑end before any code is merged.
+
+### Pipeline Stages
+
+| Stage | What it does |
+|-------|--------------|
+| **setup** | Installs all Python dependencies (cached for speed) |
+| **lint** | Runs Ruff to catch code style issues and potential bugs |
+| **security** | Scans dependencies for known vulnerabilities with `pip‑audit` |
+| **build** | Builds Docker images for every microservice |
+| **integration_test** | Starts the full stack (services + DB + Redis + Celery), waits for health, executes the integration test script, then cleans up |
+
+### Key Features
+
+- **Docker‑in‑Docker (DinD)** – the pipeline builds images and runs containers inside the CI environment
+- **Caching** – pip cache is shared between stages to speed up repeated runs
+- **Secrets management** – sensitive values (JWT secret, DB credentials) are stored as GitLab CI/CD Variables, never in code
+- **Fail‑fast** – if any stage fails, the pipeline stops and the merge is blocked
+- **Automatic cleanup** – containers and volumes are destroyed after tests, keeping runners clean
+
+### Setup Instructions
+
+1. Push the `.gitlab-ci.yml` file to your repository (already included).
+2. In GitLab, go to **Settings → CI/CD → Variables** and add:
+
+   | Variable | Description |
+   |----------|-------------|
+   | `JWT_SECRET_KEY` | Secret key for signing JWT tokens |
+   | `POSTGRES_USER` | PostgreSQL username (e.g., `postgres`) |
+   | `POSTGRES_PASSWORD` | PostgreSQL password |
+   | `POSTGRES_HOST` | Database hostname (use `db` for Docker Compose) |
+   | `POSTGRES_DB` | Database name (e.g., `microbank`) |
+   | `REDIS_HOST` | Redis hostname (use `redis`) |
+   | `ADMIN_EMAIL` | Email of an admin user (for admin tests) |
+   | `ADMIN_PASSWORD` | Password of that admin user |
+
+   Mask all secret values for safety.
+
+3. After setting the variables, any new commit or merge request will automatically trigger the pipeline.
+
+### Pipeline Badge
+
+To show the current pipeline status in this README, add the badge from **Settings → CI/CD → General pipelines → Pipeline status**.
