@@ -103,19 +103,18 @@ integration_test:
     ACCOUNT_URL: http://docker:8002
     TRANSACTION_URL: http://docker:8003
     ADMIN_URL: http://docker:8004
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}-pip
+    paths:
+      - ~/.cache/pip
+    policy: pull
   before_script:
     - apt-get update && apt-get install -y docker-compose curl
     - pip install -r requirements.txt
+    - echo "🚀 Launching all services..."
     - docker-compose up -d
-      for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do
-        for i in $(seq 1 30); do
-          if curl -s "$url/docs" > /dev/null; then
-            echo "✅ $url ready"
-            break
-          fi
-          sleep 2
-        done
-      done
+    - echo "⏳ Waiting for services to be ready..."
+    - for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do echo "Checking $url"; for i in $(seq 1 30); do if curl -s "$url/docs" > /dev/null; then echo "✅ $url ready"; break; fi; sleep 2; done; done
   script:
     - python tests/integration_test.py
   after_script:
