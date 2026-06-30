@@ -109,11 +109,26 @@ integration_test:
       - ~/.cache/pip
     policy: pull
   before_script:
+    # Install tools and dependencies
     - apt-get update && apt-get install -y docker-compose curl
     - pip install -r requirements.txt
-    - echo "🚀 Launching all services..."
+
+    # -----------------------------------------------------------
+    # 1. Run database migrations (blocking)
+    # -----------------------------------------------------------
+    - echo "🗃️ Running database migrations..."
+    - docker-compose run --rm db-migrate
+
+    # -----------------------------------------------------------
+    # 2. Start all other services (migration already done)
+    # -----------------------------------------------------------
+    - echo "🚀 Launching services..."
     - docker-compose up -d
-    - echo "⏳ Waiting for services to be ready..."
+
+    # -----------------------------------------------------------
+    # 3. Wait for API services to be healthy
+    # -----------------------------------------------------------
+    - echo "⏳ Waiting for services..."
     - for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do echo "Checking $url"; for i in $(seq 1 30); do if curl -s "$url/docs" > /dev/null; then echo "✅ $url ready"; break; fi; sleep 2; done; done
   script:
     - python tests/integration_test.py
