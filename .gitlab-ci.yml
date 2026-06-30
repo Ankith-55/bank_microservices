@@ -105,8 +105,8 @@ integration_test:
     ADMIN_URL: http://docker:8004
   before_script:
     - apt-get update && apt-get install -y docker-compose curl
+    - pip install -r requirements.txt
     - docker-compose up -d
-    - |
       for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do
         for i in $(seq 1 30); do
           if curl -s "$url/docs" > /dev/null; then
