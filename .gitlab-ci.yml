@@ -89,7 +89,7 @@ build:
 # ------------------------------------------------------------
 # Integration test
 # ------------------------------------------------------------
-integration_test:
+iintegration_test:
   stage: test
   image: $PYTHON_IMAGE
   variables:
@@ -113,29 +113,42 @@ integration_test:
     - apt-get update && apt-get install -y docker-compose curl
     - pip install -r requirements.txt
 
-    # 1. Start only the infrastructure that migrations depend on
+    # 1. Start only the database and Redis
     - echo "🗄️ Starting database and Redis..."
     - docker-compose up -d db redis
 
-    # 2. Wait until PostgreSQL is actually ready to accept connections
+    # 2. Wait until PostgreSQL is really listening on port 5432
     - echo "⏳ Waiting for database to be ready..."
-    - until docker-compose exec -T db pg_isready -U $POSTGRES_USER; do echo "Database not ready..."; sleep 2; done
+    - |
+      python -c '
+      import socket, time
+      s = socket.socket()
+      for _ in range(30):
+          try:
+              s.connect(("docker", 5432))
+              s.close()
+              print("Database is ready")
+              break
+          except OSError:
+              time.sleep(2)
+      else:
+          raise SystemExit("Database did not become ready in time")
+      '
 
-    # 3. Run migrations (database is now live)
-    - echo "🗃️ Running database migrations..."
-    - docker-compose run --rm db-migrate
-
-    # 4. Launch all remaining services
+    # 3. Now start everything else (migration will succeed because DB is up)
     - echo "🚀 Launching all services..."
     - docker-compose up -d
 
-    # 5. Wait for each API service to respond
+    # 4. Wait for all API services to respond
     - echo "⏳ Waiting for API services..."
     - for url in $AUTH_URL $ACCOUNT_URL $TRANSACTION_URL $ADMIN_URL; do echo "Checking $url"; for i in $(seq 1 30); do if curl -s "$url/docs" > /dev/null; then echo "✅ $url ready"; break; fi; sleep 2; done; done
+
   script:
     - python tests/integration_test.py
+
   after_script:
     - docker-compose down -v --remove-orphans
+
   needs:
     - build
   only:
